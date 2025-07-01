@@ -47,7 +47,7 @@ public class BlockchainClient: SolanaBlockchainClient {
                 .compileMessage()  // Message
                 .serialize()  // Data
             let totalFee = try await apiClient.getFeeForMessage(
-                messageData.base64EncodedString(),
+                message: messageData.base64EncodedString(),
                 commitment: nil
             )
 
