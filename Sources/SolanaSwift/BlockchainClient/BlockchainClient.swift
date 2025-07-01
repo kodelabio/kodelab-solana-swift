@@ -48,7 +48,7 @@ public class BlockchainClient: SolanaBlockchainClient {
                 .serialize()  // Data
             let totalFee = try await apiClient.getFeeForMessage(
                 message: messageData.base64EncodedString(),
-                commitment: nil
+                commitment: "processed"
             )
 
             // 3. Derive lamports-per-signature
