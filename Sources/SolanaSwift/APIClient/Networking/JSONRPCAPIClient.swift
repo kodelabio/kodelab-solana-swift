@@ -96,12 +96,12 @@ public class JSONRPCAPIClient: SolanaAPIClient {
     }
     
     public func getFeeForMessage(message: String, commitment: Commitment? = nil) async throws -> Lamports {
-        let result: Rpc<Lamports> = try await self.request(
-          method: "getFeeForMessage",
-          params: [message, RequestConfiguration(commitment: commitment)]
-        )
-        
-        return result.value
+        struct FeeValue: Decodable { let value: UInt64? }
+            let result: Rpc<FeeValue> = try await get(
+                method: "getFeeForMessage",
+                params: [message, RequestConfiguration(commitment: commitment)]
+            )
+            return result.value.value ?? 0
     }
 
     public func getMinimumBalanceForRentExemption(dataLength: UInt64,
