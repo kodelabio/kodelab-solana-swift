@@ -95,13 +95,37 @@ public class JSONRPCAPIClient: SolanaAPIClient {
         throw APIClientError.methodDeprecated
     }
     
-    public func getFeeForMessage(message: String, commitment: Commitment? = nil) async throws -> Lamports {
-        struct FeeValue: Decodable { let value: UInt64? }
-            let result: Rpc<FeeValue> = try await get(
+    public func getFeeForMessage(
+        message: String,
+        commitment: Commitment? = nil
+    ) async throws -> Lamports {
+
+        struct RawResult: Decodable {
+            let context: Context?
+            let value: UInt64?
+            struct Context: Decodable { let slot: UInt64 }
+        }
+
+        do {
+            let rpc: Rpc<RawResult> = try await get(
                 method: "getFeeForMessage",
                 params: [message, RequestConfiguration(commitment: commitment)]
             )
-            return result.value.value ?? 0
+
+            // ── TEMP LOG ─────────────────────────────────────────────
+            #if DEBUG
+            print("[DEBUG] getFeeForMessage raw →", rpc)
+            #endif
+            // ─────────────────────────────────────────────────────────
+
+            return rpc.value.value ?? 0// null  ⇒  0
+        } catch {
+            // ── LOG & FALL-BACK ─────────────────────────────────────
+            #if DEBUG
+            print("[DEBUG] getFeeForMessage error →", error)
+            #endif
+            return 0// any RPC error ⇒ 0
+        }
     }
 
     public func getMinimumBalanceForRentExemption(dataLength: UInt64,
