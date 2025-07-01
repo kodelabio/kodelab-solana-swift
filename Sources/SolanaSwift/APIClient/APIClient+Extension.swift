@@ -2,10 +2,10 @@ import Foundation
 
 // MARK: - TokenRepository
 
-public extension SolanaAPIClient {
+extension SolanaAPIClient {
     // MARK: - Convenience methods
 
-    func getTokenAccountsByOwner(
+    public func getTokenAccountsByOwner(
         pubkey: String,
         params: OwnerInfoParams?,
         configs: RequestConfiguration?
@@ -18,33 +18,56 @@ public extension SolanaAPIClient {
         )
     }
 
-    func getMinimumBalanceForRentExemption(span: UInt64) async throws -> UInt64 {
-        try await getMinimumBalanceForRentExemption(dataLength: span, commitment: "recent")
+    public func getMinimumBalanceForRentExemption(span: UInt64) async throws
+        -> UInt64
+    {
+        try await getMinimumBalanceForRentExemption(
+            dataLength: span, commitment: "recent")
     }
 
-    func getRecentBlockhash() async throws -> String {
-        try await getRecentBlockhash(commitment: nil)
+    @available(*, deprecated, renamed: "getLatestBlockhash")
+    public func getRecentBlockhash() async throws -> String {
+        try await getLatestBlockhash()
     }
-    
-    func getLatestBlockhash() async throws -> String {
+
+    public func getLatestBlockhash() async throws -> String {
         try await getLatestBlockhash(commitment: "processed")
     }
 
-    func observeSignatureStatus(signature: String) -> AsyncStream<PendingTransactionStatus> {
+    public func observeSignatureStatus(signature: String) -> AsyncStream<
+        PendingTransactionStatus
+    > {
         observeSignatureStatus(signature: signature, timeout: 60, delay: 2)
     }
 
     /// Get fee per signature
-    func getLamportsPerSignature() async throws -> UInt64? {
-        try await getFees(commitment: nil).feeCalculator?.lamportsPerSignature
+    public func getLamportsPerSignature() async throws -> UInt64 {
+        do {
+            // Build a 1-signature stub message
+            let blockhash = try await getLatestBlockhash()
+            let feePayer = SystemProgram.id  // any valid 32-byte pubkey
+            let stubTx = Transaction(
+                instructions: [],
+                recentBlockhash: blockhash,
+                feePayer: feePayer
+            )
+            let msgB64 = try stubTx.compileMessage().serialize()
+                .base64EncodedString()
+
+            // Ask the cluster for the fee it would charge
+            return try await getFeeForMessage(message: msgB64, commitment: nil)
+        } catch {
+            return 5_000  // safe default
+        }
     }
 
     /// Convenience method for request(method:params:) with no params
-    func request<Entity>(method: String) async throws -> Entity where Entity: Decodable {
+    public func request<Entity>(method: String) async throws -> Entity
+    where Entity: Decodable {
         try await request(method: method, params: [])
     }
 
-    func getMultipleMintDatas<M: MintLayoutState>(
+    public func getMultipleMintDatas<M: MintLayoutState>(
         mintAddresses: [String],
         commitment: Commitment,
         mintType _: M.Type
@@ -68,9 +91,13 @@ public extension SolanaAPIClient {
     /// - Parameters:
     ///   - signature: signature of the transaction
     ///   - ignoreStatus: ignore status and return true even when observation is timed out
-    func waitForConfirmation(signature: String, ignoreStatus: Bool, timeout: Int = 60, delay: Int = 2) async throws {
+    public func waitForConfirmation(
+        signature: String, ignoreStatus: Bool, timeout: Int = 60, delay: Int = 2
+    ) async throws {
         var statuses = [PendingTransactionStatus]()
-        for try await status in observeSignatureStatus(signature: signature, timeout: timeout, delay: delay) {
+        for try await status in observeSignatureStatus(
+            signature: signature, timeout: timeout, delay: delay)
+        {
             statuses.append(status)
         }
 
@@ -90,7 +117,7 @@ public extension SolanaAPIClient {
 
     // MARK: - Additional methods
 
-    func checkIfAssociatedTokenAccountExists(
+    public func checkIfAssociatedTokenAccountExists(
         owner: PublicKey,
         mint: String,
         tokenProgramId: PublicKey
@@ -103,8 +130,10 @@ public extension SolanaAPIClient {
             tokenProgramId: tokenProgramId
         )
 
-        let bufferInfo: BufferInfo<TokenAccountState>? = try await getAccountInfo(account: associatedTokenAccount
-            .base58EncodedString)
+        let bufferInfo: BufferInfo<TokenAccountState>? =
+            try await getAccountInfo(
+                account: associatedTokenAccount
+                    .base58EncodedString)
         return bufferInfo?.data.mint == mintAddress
     }
 
@@ -114,11 +143,12 @@ public extension SolanaAPIClient {
     /// - Throws: TokenRepositoryError
     /// - Returns wether account is valid
     ///
-    func checkAccountValidation(account: String) async throws -> Bool {
-        try (await getAccountInfo(account: account) as BufferInfo<EmptyInfo>?) != nil
+    public func checkAccountValidation(account: String) async throws -> Bool {
+        try (await getAccountInfo(account: account) as BufferInfo<EmptyInfo>?)
+            != nil
     }
 
-    func findSPLTokenDestinationAddress(
+    public func findSPLTokenDestinationAddress(
         mintAddress: String,
         destinationAddress: String,
         tokenProgramId: PublicKey
@@ -126,13 +156,15 @@ public extension SolanaAPIClient {
         var address: String
         var accountInfo: BufferInfo<TokenAccountState>?
         do {
-            accountInfo = try await getAccountInfoThrowable(account: destinationAddress)
+            accountInfo = try await getAccountInfoThrowable(
+                account: destinationAddress)
             let toTokenMint = accountInfo?.data.mint.base58EncodedString
             // detect if destination address is already a SPLToken address
             if mintAddress == toTokenMint {
                 address = destinationAddress
                 // detect if destination address is a SOL address
-            } else if accountInfo?.owner == SystemProgram.id.base58EncodedString {
+            } else if accountInfo?.owner == SystemProgram.id.base58EncodedString
+            {
                 let owner = try PublicKey(string: destinationAddress)
                 let tokenMint = try PublicKey(string: mintAddress)
                 // create associated token address
@@ -144,7 +176,9 @@ public extension SolanaAPIClient {
             } else {
                 throw PublicKeyError.invalidAddress(destinationAddress)
             }
-        } catch let error as APIClientError where error == .couldNotRetrieveAccountInfo {
+        } catch let error as APIClientError
+            where error == .couldNotRetrieveAccountInfo
+        {
             let owner = try PublicKey(string: destinationAddress)
             let tokenMint = try PublicKey(string: mintAddress)
             // create associated token address
@@ -165,7 +199,8 @@ public extension SolanaAPIClient {
             // check if associated address is already registered
             let info: BufferInfo<TokenAccountState>?
             do {
-                info = try await getAccountInfoThrowable(account: toPublicKey.base58EncodedString)
+                info = try await getAccountInfoThrowable(
+                    account: toPublicKey.base58EncodedString)
             } catch {
                 info = nil
             }
@@ -173,12 +208,15 @@ public extension SolanaAPIClient {
 
             // if associated token account has been registered
             if PublicKey.isSPLTokenProgram(info?.owner),
-               info?.data != nil
+                info?.data != nil
             {
                 isUnregisteredAsocciatedToken = false
             }
         }
-        return (destination: toPublicKey, isUnregisteredAsocciatedToken: isUnregisteredAsocciatedToken)
+        return (
+            destination: toPublicKey,
+            isUnregisteredAsocciatedToken: isUnregisteredAsocciatedToken
+        )
     }
 
     /// Returns all information associated with the account of provided Pubkey
@@ -187,7 +225,9 @@ public extension SolanaAPIClient {
     /// - Throws: APIClientError
     /// - Returns The result will be an BufferInfo
     /// - SeeAlso https://docs.solana.com/developing/clients/jsonrpc-api#getaccountinfo
-    func getAccountInfoThrowable<T: BufferLayout>(account: String) async throws -> BufferInfo<T> {
+    public func getAccountInfoThrowable<T: BufferLayout>(account: String)
+        async throws -> BufferInfo<T>
+    {
         let info: BufferInfo<T>? = try await getAccountInfo(account: account)
         guard let info = info else {
             throw APIClientError.couldNotRetrieveAccountInfo
