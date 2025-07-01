@@ -22,7 +22,7 @@ extension SolanaAPIClient {
         -> UInt64
     {
         try await getMinimumBalanceForRentExemption(
-            dataLength: span, commitment: "recent")
+            dataLength: span, commitment: "processed")
     }
 
     @available(*, deprecated, renamed: "getLatestBlockhash")
