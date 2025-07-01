@@ -428,20 +428,17 @@ public class JSONRPCAPIClient: SolanaAPIClient {
     }
 
     private func makeRequest(request: RequestEncoder.RequestType) async throws -> Data {
-
-        // 1. Encode the request body
+        // 1. Encode the JSON-RPC body
         let encodedParams = try RequestEncoder(request: request).encoded()
 
         #if DEBUG
         // ───────────── OUTGOING ─────────────
         if let json = String(data: encodedParams, encoding: .utf8) {
-            Logger.log(event: "RPC → \(request.method)",
-                       message: json,
-                       logLevel: .debug)
+            print("\n🚀 RPC → \(request.method)\n\(json)")
         }
         #endif
 
-        // 2. Fire the request
+        // 2. Perform the network call
         let responseData = try await networkManager.requestData(
             request: urlRequest(data: encodedParams)
         )
@@ -449,9 +446,7 @@ public class JSONRPCAPIClient: SolanaAPIClient {
         #if DEBUG
         // ───────────── INCOMING ─────────────
         if let json = String(data: responseData, encoding: .utf8) {
-            Logger.log(event: "RPC ← \(request.method)",
-                       message: json,
-                       logLevel: .debug)
+            print("⬅️  RPC ← \(request.method)\n\(json)\n")
         }
         #endif
 
