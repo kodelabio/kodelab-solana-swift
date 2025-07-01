@@ -18,9 +18,9 @@ let package = Package(
     ],
     dependencies: [
         // Main depedencies
-        .package(url: "https://github.com/GigaBitcoin/secp256k1.swift", from: "0.1.0"),
         .package(url: "https://github.com/bitmark-inc/tweetnacl-swiftwrap.git", from: "1.0.2"),
         .package(url: "https://github.com/bigearsenal/task-retrying-swift.git", from: "2.0.0"),
+        .package(url: "https://github.com/GigaBitcoin/secp256k1.swift", .upToNextMinor(from: "0.10.0")),
 
         // Docs generator
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),

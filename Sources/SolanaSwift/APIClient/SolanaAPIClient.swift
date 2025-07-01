@@ -109,17 +109,6 @@ public protocol SolanaAPIClient {
     /// - SeeAlso https://docs.solana.com/developing/clients/jsonrpc-api#getepochinfo
     ///
     func getEpochInfo(commitment: Commitment?) async throws -> EpochInfo
-
-    /// Returns a recent block hash from the ledger, a fee schedule that can be used to compute the cost of submitting a
-    /// transaction using it, and the last slot in which the blockhash will be valid.
-    /// - Parameters:
-    ///  - commitment: Optional
-    /// - Throws: APIClientError
-    /// - Returns The result field will be an array of u64 integers listing confirmed blocks starting at start_slot for
-    /// up to limit blocks, inclusive
-    /// - SeeAlso https://docs.solana.com/developing/clients/jsonrpc-api#getfees
-    ///
-    func getFees(commitment: Commitment?) async throws -> Fee
     
     /// Get the fee the network will charge for a particular Message
     /// - Parameters:
@@ -290,15 +279,6 @@ public protocol SolanaAPIClient {
     /// - SeeAlso https://docs.solana.com/developing/clients/jsonrpc-api#getsignaturestatuses
     ///
     func observeSignatureStatus(signature: String, timeout: Int, delay: Int) -> AsyncStream<PendingTransactionStatus>
-
-    /// Returns a recent block hash from the ledger, and a fee schedule that can be used to compute the cost of
-    /// submitting a transaction using it.
-    /// - Parameters:
-    ///  - commitment: (optional) Commitment
-    /// - Throws: APIClientError
-    /// - SeeAlso https://docs.solana.com/developing/clients/jsonrpc-api#getrecentblockhash
-    ///
-    func getRecentBlockhash(commitment: Commitment?) async throws -> String
     
     /// Returns the latest blockhash
     /// - Parameters:

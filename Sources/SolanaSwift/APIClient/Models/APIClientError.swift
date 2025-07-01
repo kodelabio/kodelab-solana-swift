@@ -7,4 +7,5 @@ public enum APIClientError: Error, Equatable {
     case transactionSimulationError(logs: [String])
     case couldNotRetrieveAccountInfo
     case blockhashNotFound
+    case methodDeprecated
 }

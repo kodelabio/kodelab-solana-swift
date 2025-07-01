@@ -28,26 +28,47 @@ public class BlockchainClient: SolanaBlockchainClient {
         feeCalculator fc: FeeCalculator? = nil
     ) async throws -> PreparedTransaction {
         // form transaction
-        var transaction = Transaction(instructions: instructions, recentBlockhash: nil, feePayer: feePayer)
+        var transaction = Transaction(
+            instructions: instructions, recentBlockhash: nil, feePayer: feePayer
+        )
 
         let feeCalculator: FeeCalculator
+        let latestBlockhash = try await apiClient.getLatestBlockhash()
         if let fc = fc {
             feeCalculator = fc
         } else {
-            let (lps, minRentExemption) = try await(
-                apiClient.getFees(commitment: nil).feeCalculator?.lamportsPerSignature,
-                apiClient.getMinimumBalanceForRentExemption(span: 165)
+            // 1. Get a fresh block-hash (new RPC)
+            
+            transaction.recentBlockhash = latestBlockhash
+
+            // 2. Build the unsigned message and ask the cluster for its fee
+            let messageData =
+                try transaction
+                .compileMessage()  // Message
+                .serialize()  // Data
+            let totalFee = try await apiClient.getFeeForMessage(
+                messageData.base64EncodedString(),
+                commitment: nil
             )
-            let lamportsPerSignature = lps ?? 5000
+
+            // 3. Derive lamports-per-signature
+            //    (the stub currently carries exactly one required signature: the fee-payer)
+            let lamportsPerSignature = totalFee > 0 ? totalFee : 5_000
+
+            // 4. Still need the rent-exemption value for ATA creation, etc.
+            let minRentExemption =
+                try await apiClient
+                .getMinimumBalanceForRentExemption(span: 165)
+
             feeCalculator = DefaultFeeCalculator(
                 lamportsPerSignature: lamportsPerSignature,
                 minRentExemption: minRentExemption
             )
         }
-        let expectedFee = try feeCalculator.calculateNetworkFee(transaction: transaction)
+        let expectedFee = try feeCalculator.calculateNetworkFee(
+            transaction: transaction)
 
-        let blockhash = try await apiClient.getRecentBlockhash()
-        transaction.recentBlockhash = blockhash
+        transaction.recentBlockhash = latestBlockhash
 
         // if any signers, sign
         if !signers.isEmpty {
@@ -55,7 +76,9 @@ public class BlockchainClient: SolanaBlockchainClient {
         }
 
         // return formed transaction
-        return .init(transaction: transaction, signers: signers, expectedFee: expectedFee)
+        return .init(
+            transaction: transaction, signers: signers, expectedFee: expectedFee
+        )
     }
 
     /// Create prepared transaction for sending SOL
@@ -79,10 +102,16 @@ public class BlockchainClient: SolanaBlockchainClient {
         }
         var accountInfo: BufferInfo<EmptyInfo>?
         do {
-            accountInfo = try await apiClient.getAccountInfo(account: destination)
-            guard accountInfo == nil || accountInfo?.owner == SystemProgram.id.base58EncodedString
+            accountInfo = try await apiClient.getAccountInfo(
+                account: destination)
+            guard
+                accountInfo == nil
+                    || accountInfo?.owner
+                        == SystemProgram.id.base58EncodedString
             else { throw BlockchainClientError.invalidAccountInfo }
-        } catch let error as APIClientError where error == .couldNotRetrieveAccountInfo {
+        } catch let error as APIClientError
+            where error == .couldNotRetrieveAccountInfo
+        {
             // ignoring error
             accountInfo = nil
         } catch {
@@ -128,7 +157,9 @@ public class BlockchainClient: SolanaBlockchainClient {
         transferChecked: Bool = false,
         lamportsPerSignature: Lamports,
         minRentExemption: Lamports
-    ) async throws -> (preparedTransaction: PreparedTransaction, realDestination: String) {
+    ) async throws -> (
+        preparedTransaction: PreparedTransaction, realDestination: String
+    ) {
         let feePayer = feePayer ?? account.publicKey
 
         let splDestination = try await apiClient.findSPLTokenDestinationAddress(
@@ -155,12 +186,14 @@ public class BlockchainClient: SolanaBlockchainClient {
             let mint = try PublicKey(string: mintAddress)
             let owner = try PublicKey(string: destinationAddress)
 
-            let createATokenInstruction = try AssociatedTokenProgram.createAssociatedTokenAccountInstruction(
-                mint: mint,
-                owner: owner,
-                payer: feePayer,
-                tokenProgramId: tokenProgramId
-            )
+            let createATokenInstruction =
+                try AssociatedTokenProgram
+                .createAssociatedTokenAccountInstruction(
+                    mint: mint,
+                    owner: owner,
+                    payer: feePayer,
+                    tokenProgramId: tokenProgramId
+                )
             instructions.append(createATokenInstruction)
             accountsCreationFee += minRentExemption
         }
@@ -182,15 +215,16 @@ public class BlockchainClient: SolanaBlockchainClient {
                     decimals: decimals
                 )
             } else {
-                sendInstruction = try Token2022Program.transferCheckedInstruction(
-                    source: fromPublicKey,
-                    mint: PublicKey(string: mintAddress),
-                    destination: splDestination.destination,
-                    owner: account.publicKey,
-                    multiSigners: [],
-                    amount: amount,
-                    decimals: decimals
-                )
+                sendInstruction =
+                    try Token2022Program.transferCheckedInstruction(
+                        source: fromPublicKey,
+                        mint: PublicKey(string: mintAddress),
+                        destination: splDestination.destination,
+                        owner: account.publicKey,
+                        multiSigners: [],
+                        amount: amount,
+                        decimals: decimals
+                    )
             }
         } else {
             // transfer transaction
