@@ -434,7 +434,7 @@ public class JSONRPCAPIClient: SolanaAPIClient {
         #if DEBUG
         // ───────────── OUTGOING ─────────────
         if let json = String(data: encodedParams, encoding: .utf8) {
-            print("\n🚀 RPC → \(request.method)\n\(json)")
+            print("\nRPC Call \(request.method)")
         }
         #endif
 
@@ -446,7 +446,7 @@ public class JSONRPCAPIClient: SolanaAPIClient {
         #if DEBUG
         // ───────────── INCOMING ─────────────
         if let json = String(data: responseData, encoding: .utf8) {
-            print("⬅️  RPC ← \(request.method)\n\(json)\n")
+            print("RPC response\n\(json)")
         }
         #endif
 
